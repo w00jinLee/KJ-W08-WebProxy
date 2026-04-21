@@ -28,7 +28,8 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  listenfd = Open_listenfd(argv[1]);
+  listenfd = Open_listenfd(argv[1]);  // 입력 받은 포트 번호 사용해서 TCP 소켓을 만들고, 소켓을 해당 포트에 bind하고, 
+                                      // listen 상태로 바꾼 뒤 그 listening socket의 fd를 listenfd에 저장
   while (1)
   {
     clientlen = sizeof(clientaddr);
@@ -103,8 +104,8 @@ void read_requesthdrs(rio_t *rp)
   Rio_readlineb(rp, buf, MAXLINE);
   while (strcmp(buf, "\r\n"))
   {
-    Rio_readlineb(rp, buf, MAXLINE);
     printf("%s", buf);
+    Rio_readlineb(rp, buf, MAXLINE);
   }
   return;
 }
@@ -153,11 +154,17 @@ void serve_static(int fd, char *filename, int filesize)
   printf("Response headers:\n");
   printf("%s", buf);
 
+  // srcfd = Open(filename, O_RDONLY, 0);
+  // srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+  // Close(srcfd);
+  // Rio_writen(fd, srcp, filesize);
+  // Munmap(srcp, filesize);
   srcfd = Open(filename, O_RDONLY, 0);
-  srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+  srcp = Malloc(filesize);
+  Rio_readn(srcfd, srcp, filesize);
   Close(srcfd);
   Rio_writen(fd, srcp, filesize);
-  Munmap(srcp, filesize);
+  free(srcp);
 }
 
 void get_filetype(char *filename, char *filetype)
@@ -170,6 +177,8 @@ void get_filetype(char *filename, char *filetype)
     strcpy(filetype, "image/png");
   else if (strstr(filename, ".jpg"))
     strcpy(filetype, "image/jpeg");
+  else if (strstr(filename, ".mpg") || strstr(filename, ".mpeg"))
+    strcpy(filetype, "video/mpeg");
   else
     strcpy(filetype, "text/plain");
 }
